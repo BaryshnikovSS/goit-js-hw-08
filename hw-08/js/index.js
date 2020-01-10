@@ -33,55 +33,63 @@ const galleryItems = baseList.default;
 const galleryList = document.querySelector(".js-gallery");
 const lightBox = document.querySelector(".lightbox");
 const lightBoxImage = document.querySelector(".lightbox__image");
-const addItems = galleryItems.reduce((acc, item) => {
-  return (acc += `<li class="gallery__item">
-  <a
-  class="gallery__link"
-  href="${item.original}"
-  >
-  <img
-  class="gallery__image"
-  src="${item.preview}"
-  data-source="${item.original}"
-  alt="${item.description}"
-  />
-  </a>
-  </li>`);
-}, "");
+const liItems = createLi(galleryItems);
+const closeBtn = document.querySelector('[data-action="close-lightbox"]')
 
+function createLi(arr) {
+  return arr.reduce((acc, item) => {
+    (acc += `
+      <li class="gallery__item">
+        <a class="gallery__link" href="${item.original}">
+          <img 
+            class="gallery__image" 
+            src="${item.preview}" 
+            data-source="${item.original}"
+            alt="${item.description}"
+          />
+        </a>
+      </li>`);
 
-galleryList.insertAdjacentHTML("afterbegin", addItems);
-galleryList.addEventListener("click", handleClick);
-lightBox.addEventListener("click", handleClose);
-document.addEventListener("keydown", handleKeyPress);
+    return acc;  
+    }, "");
+  }
+
+galleryList.insertAdjacentHTML('afterbegin', liItems);
+
+galleryList.addEventListener('click', openImage);
+closeBtn.addEventListener('click', closeImage);
+lightBox.addEventListener('click', closeByOverlay);
 
 // Реализация делегирования на галерее ul.js-gallery и получение url большого изображения.
 // Открытие модального окна по клику на элементе галереи.
-
-function handleClick(e) {
-  e.preventDefault();
-  lightBox.classList.add("is-open");
-  lightBoxImage.src = e.target.dataset.source;
-}
-
 // Подмена значения атрибута src элемента img.lightbox__image.
 
-function handleClose(e) {
+function openImage(e) {
   e.preventDefault();
-  if (e.target === lightBoxImage) {
+  if (e.target === e.currentTarget) {
     return;
   }
-  lightBox.classList.remove("is-open");
-  lightBoxImage.src = "";
-}
+  const bigURL = e.target.dataset.source;
+  const alt = e.target.alt;
+  lightBox.classList.add('is-open');
+  lightBoxImage.src = bigURL;
+  lightBoxImage.alt = alt;
 
-function allowedKey(key) {
-  const ALLOWED_KEYS = ['Escape', 'ArrowRight', 'ArrowLeft'];
-  return ALLOWED_KEYS.includes(key);
+  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('keydown', handleArrow);
 }
 
 // Очистка значения атрибута src элемента img.lightbox__image. Это необходимо для того, чтобы при следующем 
 // открытии модального окна, пока грузится изображение, мы не видели предыдущее cтартовые файлы
+
+function closeImage() {
+  lightBox.classList.remove('is-open');
+  lightBoxImage.src = "";
+  lightBoxImage.alt = "";
+
+  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('keydown', handleArrow);
+}
 
 // Дополнительно
 
@@ -89,32 +97,38 @@ function allowedKey(key) {
 // Закрытие модального окна по нажатию клавиши ESC.
 // Пролистывание изображений галереи в открытом модальном окне клавишами "влево" и "вправо".
 
-function handleKeyPress(e) {
-  if (!allowedKey(e.code)) {
-    return;
-  }
 
-  if (e.code === "Escape") {
-    lightBox.classList.remove("is-open");
-    lightBoxImage.src = "";
+function closeByOverlay(e) {
+  if (e.target.nodeName !== 'DIV') {
     return;
   }
-  let idx;
-  const currentImg = galleryItems.find((item, _idx) => {
-    idx = _idx;
-    return item.original === lightBoxImage.src;
-  });
-  if (e.code === "ArrowRight") {
-    idx += 1;
+  closeImage();
+}
+
+function handleKeydown(e) {
+  if (e.code === 'Escape') {
+    closeImage();
+  } else {
+    return;
   }
-  if (e.code === "ArrowLeft") {
-    idx -= 1;
+}
+
+function handleArrow(e) {
+  if (e.code === 'ArrowLeft') {
+    const currentSrc = lightBoxImage.src;
+    const matchingObj = galleryItems.find(elem => elem.original === currentSrc);
+    let resultIdx = galleryItems.indexOf(matchingObj) - 1;
+    if (resultIdx < 0) {
+      resultIdx = galleryItems.length - 1;
+    }
+    lightBoxImage.src = galleryItems[resultIdx].original;
+  } else if (e.code === 'ArrowRight') {
+    const currentSrc = lightBoxImage.src;
+    const matchingObj = galleryItems.find(elem => elem.original === currentSrc);
+    let resultIdx = galleryItems.indexOf(matchingObj) + 1;
+    if (resultIdx > galleryItems.length - 1) {
+      resultIdx = 0;
+    }
+    lightBoxImage.src = galleryItems[resultIdx].original;
   }
-  if (idx < 0) {
-    idx = galleryItems.length - 1;
-  }
-  if (idx > galleryItems.length - 1) {
-    idx = 0;
-  }
-  lightBoxImage.src = galleryItems[idx].original;
 }
